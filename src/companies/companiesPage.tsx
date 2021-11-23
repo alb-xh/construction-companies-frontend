@@ -85,8 +85,9 @@ export function CompaniesPage(): JSX.Element {
   const haveCompanies = !!companies.length;
   const gridIsLoaded = haveSpecialities && haveCompanies && companies.length === imagesCount;
 
-  const showSpinner = !haveSpecialities || !haveCompanies || !gridIsLoaded;
-  const showSpecialitiesList = haveSeletectedSpecialities;
+  const hideSpinner = haveSpecialities && !haveSeletectedSpecialities;
+  const showSpinner =  !hideSpinner && (!haveSpecialities || !haveCompanies || !gridIsLoaded);
+  const showSpecialitiesList = haveSpecialities;
   const loadGrid = haveSpecialities && haveCompanies;
 
   const elementWrapperStyle = {

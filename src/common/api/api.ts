@@ -1,8 +1,5 @@
-import { CompaniesQS, PaginationQS } from './types';
+import { CompaniesQS } from './types';
 
-const specialities = [ 'Excavation', 'Plumbing', 'Electrical', 'Parket', 'Sanitary' ];
-
-let id=0
 export class Api {
   public readonly baseUrl: string;
 
@@ -10,59 +7,45 @@ export class Api {
     this.baseUrl = baseUrl;
   }
 
-  private getUrl (pathname: string, qs?: Record<string, string | number>): string {
-    const url = [ this.baseUrl, pathname ].join('/');
-    if (!qs) return url;
-
-    const query = Object.entries(qs)
-      .map((pair) => pair.join('='));
-
-    return [ url, query ].join('?')
+  private getUrl (pathname: string): string {
+    return [ this.baseUrl, pathname ].join('/');
   }
 
-  async getSpecialties(qs?: PaginationQS): Promise<string[]> {
-    const url = this.getUrl('/specialties', qs);
+  // TODO: add error handling, restart on components
+  async getSpecialties(): Promise<string[]> {
+    const url = this.getUrl('specialties');
 
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(specialities), 1 * 1000);
-    });
+    const res = await fetch(url);
+    const specialties = await res.json();
+
+    return specialties as string[];
   }
 
-  async getCompanies (qs: CompaniesQS): Promise<{ companies: unknown[], count: number}>  {
+  // TODO: add error handling, restart on components, use qs lib
+  async getCompanies (qs: CompaniesQS): Promise<{ companies: unknown[], count: number}> {
+    const { specialties, name, limit, offset } = qs;
 
-    //await fetch(url)
+    const url = this.getUrl('companies');
 
-    const randomString = (): string => (Math.random() + 1).toString(36).substring(7);
-    const randomSpeciality = () => {
-      const randomIndex = Math.floor(Math.random() * specialities.length);
+    const oUrl = new URL(url);
+    const qParams = oUrl.searchParams;
 
-      return specialities[randomIndex];
+    qParams.set('limit', limit.toString());
+    qParams.set('offset', (limit * offset).toString());
+
+    if (specialties.length === 1) {
+      qParams.append('specialties[]', specialties[0]);
+    } else {
+      specialties.forEach((specialty) => {
+        qParams.append('specialties', specialty);
+      });
     }
 
-    const generateRandomCompanies = (limit = 10): Array<unknown> => (
-      [ ...Array(limit) ].map((el, i) => (
-        {
-          name: randomString(),
-          logo: {
-            src: `https://picsum.photos/120/90?id=${id++}`,
-            alt: 'Google logo',
-          },
-          specialty: randomSpeciality(),
-          city: 'London',
-        }
-      ))
-        .filter((company) => qs.specialties.includes(company.specialty))
-    )
+    if (name) qParams.set('name', name);
 
-    return new Promise((resolve) => {
-      const companies = generateRandomCompanies(qs.limit);
-      console.log(qs.specialties, qs.limit)
-      console.log(companies);
-      const count = companies.length < qs.limit
-        ? companies.length
-        : Math.floor(Math.random()  * 1000) + 100;
+    const res = await fetch(oUrl.href);
+    const { companies, count } = await res.json();
 
-      setTimeout(() => resolve({ companies, count }), 1 * 1000);
-    });
+    return { companies, count };
   }
 }
