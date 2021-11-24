@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isEqual } from 'lodash';
 
 import {
   apiClient,
@@ -20,6 +21,7 @@ export function CompaniesPage(): JSX.Element {
   const selectedSpecialtiesInitialState: Set<string> = new Set();
   const imagesCountInitialState = 0;
   const searchFilterInitialState = '';
+  const noResultInitialState = false;
 
   const [ companies, setCompanies ] = useState<unknown[]>(companiesInitialState);
   const [ specialties, setSpecialties ] = useState<string[]>(specialtiesInitialState);
@@ -27,6 +29,7 @@ export function CompaniesPage(): JSX.Element {
   const [ imagesCount, setImagesCount ] = useState<number>(imagesCountInitialState);
   const [ searchFilter, setSearchFilter ] = useState<string>(searchFilterInitialState);
   const [ totalCompaniesCount, setTotalCompaniesCount ] = useState<number>(totalCompaniesCountInitialState);
+  const [ noResult, setNoResult ] = useState<boolean>(noResultInitialState);
 
   const paginationState = {
     count: totalCompaniesCount,
@@ -45,6 +48,10 @@ export function CompaniesPage(): JSX.Element {
   }
 
   useEffect(() => {
+    if (noResult) alert('No results!');
+  }, [ noResult ])
+
+  useEffect(() => {
     if (!specialties.length) fetchSpecialties();
   }, [ specialties ]);
 
@@ -54,16 +61,20 @@ export function CompaniesPage(): JSX.Element {
     const pageIndex = Location.getPageIndex(paginationState);
     const pageSize = Location.getPageSize(paginationState);
 
-    const { companies, count } = await apiClient.getCompanies({
+    const { companies: newCompanies , count } = await apiClient.getCompanies({
       name: searchFilter,
       specialties: Array.from(selectedSpecialties),
       limit: pageSize,
       offset: pageIndex - 1,
     });
 
-    setCompanies(companies);
+    setNoResult(!newCompanies.length);
+
+    const newImageCount = newCompanies.filter((company, i) => isEqual(company, companies[i])).length;
+    setImagesCount(newImageCount);
+
     setTotalCompaniesCount(count);
-    setImagesCount(imagesCountInitialState);
+    setCompanies(newCompanies);
   }
 
   useEffect(() => {
@@ -81,12 +92,10 @@ export function CompaniesPage(): JSX.Element {
   };
 
   const haveSpecialities = !!specialties.length;
-  const haveSeletectedSpecialities = !!selectedSpecialties.size;
   const haveCompanies = !!companies.length;
   const gridIsLoaded = haveSpecialities && haveCompanies && companies.length === imagesCount;
 
-  const hideSpinner = haveSpecialities && !haveSeletectedSpecialities;
-  const showSpinner =  !hideSpinner && (!haveSpecialities || !haveCompanies || !gridIsLoaded);
+  const showSpinner = !noResult && !gridIsLoaded;
   const showSpecialitiesList = haveSpecialities;
   const loadGrid = haveSpecialities && haveCompanies;
 
@@ -136,6 +145,9 @@ export function CompaniesPage(): JSX.Element {
                   if (!checked) selectedSpecialties.delete(specialty)
                   else selectedSpecialties.add(specialty);
 
+                  if (!selectedSpecialties.size) {
+                    setTimeout(() => setNoResult(true), 500);
+                  }
                   setSelectedSpecialties(new Set(selectedSpecialties));
                 }
               }
